@@ -28,13 +28,13 @@ const Scoreboard = styled.div`
   margin-top: 16px;
   font-size: 24px;
 `;
-
 const TicTacToe = () => {
     const [board, setBoard] = useState(Array(9).fill(null));
     const [player, setPlayer] = useState('X');
     const [winner, setWinner] = useState(null);
     const [xWins, setXWins] = useState(0);
     const [oWins, setOWins] = useState(0);
+    const [draw, setDraw] = useState(false);
 
     const handleClick = (index) => {
         const newBoard = [...board];
@@ -43,17 +43,16 @@ const TicTacToe = () => {
             setBoard(newBoard);
             setPlayer(player === 'X' ? 'O' : 'X');
         }
-
-        const winningCombinations = [[0, 1, 2],
-        [3, 4, 5],
-        [6, 7, 8],
-        [0, 3, 6],
-        [1, 4, 7],
-        [2, 5, 8],
-        [0, 4, 8],
-        [2, 4, 6],
+        const winningCombinations = [
+            [0, 1, 2],
+            [3, 4, 5],
+            [6, 7, 8],
+            [0, 3, 6],
+            [1, 4, 7],
+            [2, 5, 8],
+            [0, 4, 8],
+            [2, 4, 6]
         ];
-
         for (let i = 0; i < winningCombinations.length; i++) {
             const [a, b, c] = winningCombinations[i];
             if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
@@ -66,22 +65,28 @@ const TicTacToe = () => {
                 return;
             }
         }
+
+        if (newBoard.every(square => square !== null) && !winner) {
+            setDraw(true);
+        }
     };
 
     const restartGame = () => {
         setBoard(Array(9).fill(null));
         setPlayer('X');
         setWinner(null);
+        setDraw(false);
     };
 
     return (
         <>
-            {winner ? (
+            {winner || draw ? (
                 <div style={{ textAlign: 'center', marginTop: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    Jogador {winner} ganhou!
+                    {winner ? `Jogador ${winner} ganhou!` : 'Deu empate!'}
                     <button onClick={restartGame} style={{ marginTop: '8px', width: 'fit-content', backgroundColor: 'green', color: 'white', padding: '10px', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
                         Reiniciar Jogo
                     </button>
+
                 </div>
             ) : (
                 <>
@@ -99,8 +104,6 @@ const TicTacToe = () => {
                 </>
             )}
         </>
-    );
-
+    )
 };
-
 export default TicTacToe;
