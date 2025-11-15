@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Velha - Otimizado</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .App {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .game-header h1 {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .game-header p {
+            font-size: 18px;
+            color: #666;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            border: 2px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .square {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: bold;
+            border: 1px solid #333;
+            box-sizing: border-box;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s ease;
+            color: #333;
+        }
+
+        .square:hover:not(.disabled) {
+            background-color: #f0f0f0;
+            transform: scale(1.05);
+        }
+
+        .square.disabled {
+            cursor: not-allowed;
+        }
+
+        .scoreboard {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .scoreboard div {
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .game-over-container {
+            text-align: center;
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .game-over-container .message {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .restart-button {
+            margin-top: 8px;
+            width: fit-content;
+            background-color: green;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .restart-button:hover {
+            background-color: darkgreen;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .restart-button:active {
+            transform: translateY(0);
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            color: white;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <div class="footer">
+        ⚡ Versão Otimizada com React - Performance Boost!
+    </div>
+
+    <!-- React & ReactDOM via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useReducer, useCallback, memo } = React;
+
+        // ========== CONSTANTES ==========
+        const WINNING_COMBINATIONS = [
+            [0, 1, 2], // Linha 1
+            [3, 4, 5], // Linha 2
+            [6, 7, 8], // Linha 3
+            [0, 3, 6], // Coluna 1
+            [1, 4, 7], // Coluna 2
+            [2, 5, 8], // Coluna 3
+            [0, 4, 8], // Diagonal \
+            [2, 4, 6]  // Diagonal /
+        ];
+
+        // ========== FUNÇÕES UTILITÁRIAS ==========
+        const checkWinner = (board) => {
+            for (let i = 0; i < WINNING_COMBINATIONS.length; i++) {
+                const [a, b, c] = WINNING_COMBINATIONS[i];
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    return board[a];
+                }
+            }
+            return null;
+        };
+
+        const checkDraw = (board) => {
+            return board.every(square => square !== null);
+        };
+
+        // ========== REDUCER ==========
+        const initialState = {
+            board: Array(9).fill(null),
+            currentPlayer: 'X',
+            winner: null,
+            xWins: 0,
+            oWins: 0,
+            isDraw: false
+        };
+
+        const gameReducer = (state, action) => {
+            switch (action.type) {
+                case 'MAKE_MOVE': {
+                    const { index } = action.payload;
+
+                    if (state.board[index] !== null || state.winner || state.isDraw) {
+                        return state;
+                    }
+
+                    const newBoard = [...state.board];
+                    newBoard[index] = state.currentPlayer;
+
+                    const winner = checkWinner(newBoard);
+
+                    if (winner) {
+                        return {
+                            ...state,
+                            board: newBoard,
+                            winner,
+                            xWins: winner === 'X' ? state.xWins + 1 : state.xWins,
+                            oWins: winner === 'O' ? state.oWins + 1 : state.oWins
+                        };
+                    }
+
+                    const isDraw = checkDraw(newBoard);
+
+                    if (isDraw) {
+                        return {
+                            ...state,
+                            board: newBoard,
+                            isDraw: true
+                        };
+                    }
+
+                    return {
+                        ...state,
+                        board: newBoard,
+                        currentPlayer: state.currentPlayer === 'X' ? 'O' : 'X'
+                    };
+                }
+
+                case 'RESTART_GAME':
+                    return {
+                        ...state,
+                        board: Array(9).fill(null),
+                        currentPlayer: 'X',
+                        winner: null,
+                        isDraw: false
+                    };
+
+                default:
+                    return state;
+            }
+        };
+
+        // ========== COMPONENTE SQUARE MEMOIZADO ==========
+        const Square = memo(({ value, onClick, disabled }) => {
+            return (
+                <div
+                    className={`square ${disabled ? 'disabled' : ''}`}
+                    onClick={onClick}
+                >
+                    {value}
+                </div>
+            );
+        });
+
+        // ========== COMPONENTE PRINCIPAL ==========
+        const TicTacToe = () => {
+            const [state, dispatch] = useReducer(gameReducer, initialState);
+
+            const handleClick = useCallback((index) => {
+                dispatch({ type: 'MAKE_MOVE', payload: { index } });
+            }, []);
+
+            const restartGame = useCallback(() => {
+                dispatch({ type: 'RESTART_GAME' });
+            }, []);
+
+            const { board, winner, isDraw, xWins, oWins } = state;
+            const gameOver = winner || isDraw;
+
+            return (
+                <>
+                    {gameOver ? (
+                        <div className="game-over-container">
+                            <div className="message">
+                                {winner ? `🎉 Jogador ${winner} ganhou!` : '🤝 Deu empate!'}
+                            </div>
+                            <button className="restart-button" onClick={restartGame}>
+                                🔄 Reiniciar Jogo
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="container">
+                                {board.map((square, index) => (
+                                    <Square
+                                        key={`square-${index}`}
+                                        value={square}
+                                        onClick={() => handleClick(index)}
+                                        disabled={square !== null}
+                                    />
+                                ))}
+                            </div>
+                            <div className="scoreboard">
+                                <div>❌ X Wins: {xWins}</div>
+                                <div>⭕ O Wins: {oWins}</div>
+                            </div>
+                        </>
+                    )}
+                </>
+            );
+        };
+
+        // ========== COMPONENTE HEADER ==========
+        const GameHeader = () => {
+            return (
+                <div className="game-header">
+                    <h1>Jogo da Velha</h1>
+                    <p>Jogue com seu amigo</p>
+                </div>
+            );
+        };
+
+        // ========== APP ==========
+        const App = () => {
+            return (
+                <div className="App">
+                    <GameHeader />
+                    <TicTacToe />
+                </div>
+            );
+        };
+
+        // ========== RENDER ==========
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
